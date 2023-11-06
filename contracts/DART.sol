@@ -6,25 +6,25 @@ import "./dataStructures/WAddressSet.sol";
 
 contract DART {
 
-    // Collega le librerie delle strutture dati ai relativi tipi
+    //"Link the data structure libraries to their respective types."
     using WBytes32Set for WBytes32Set.Set;
     using WAddressSet for WAddressSet.Set;
 
-    // Definisci le costanti nulle per principals e rolenames
+    // "Define null constants for principals and role names."
     address constant NULL_PRINCIPAL = address(0x0);
     bytes2 constant NULL_ROLENAME = 0x0000;
 
-    // Definisci le costanti rappresentanti il valore di fiducia massimo
+    // "Define constants representing the maximum trust value."
     uint constant MAX_WEIGHT = 100;
     uint8 constant MAX_WEIGHT_BYTE = 100;
 
-    // Definisci le costanti identificative di ciascun tipo di role expression
+    // "Define constants identifying each type of role expression."
     bytes1 constant EXPR_NC = 0x00;
     bytes1 constant EXPR_SI = 0x01;
     bytes1 constant EXPR_LI = 0x02;
     bytes1 constant EXPR_II = 0x03;
 
-    // Definisci la struttura dati per rappresentare le role expressions
+    // "Define the data structure to represent role expressions."
     struct Expression {
         bytes1 exprType;
 
@@ -172,19 +172,19 @@ contract DART {
         address currMember;
 
         for(i = 0; i < _proof.length; i += 2) {
-            // Ottieni il ruolo oggetto della credenziale attuale
+            // "Get the role associated with the current credential."
             currAssignedRole = exprPool[_proof[i]];
 
             if(uint96(uint256(_proof[i+1])) == 0) {
                 currMember = address(uint160(bytes20(_proof[i+1])));
 
-                // La credenziale attuale è una simple member nella forma currAssignedRole <- currMember
-                // Verifica l'esistenza su storage
+                //"The current credential is a simple member in the form currAssignedRole <- currMember.
+                // Check its existence in storage."
                 uint memberPointer = members[_proof[i]].getPointer(currMember);
                 if(memberPointer == 0)
                     return Solution(NULL_PRINCIPAL, NULL_ROLENAME, NULL_PRINCIPAL, 1);
 
-                // Accetta la simple member come soluzione inserendola nella coda di elaborazione
+                //"Accept the simple member as a solution by inserting it into the processing queue."
                 if(i != 0) j++;
                 solStack[j].principal = currAssignedRole.addrA;
                 solStack[j].rolename = currAssignedRole.roleA;
@@ -194,17 +194,17 @@ contract DART {
             else {
                 currRoleExpr = exprPool[_proof[i+1]];
 
-                // La credenziale attuale è una inclusione nella forma currAssignedRole <- currRoleExpr
-                // Verifica l'esistenza su storage
+                //"The current credential is an inclusion in the form currAssignedRole <- currRoleExpr. 
+                //Check its existence in storage."
                 uint inclusionPointer = currAssignedRole.inclusions.getPointer(_proof[i+1]);
                 if(inclusionPointer == 0)
                     return Solution(NULL_PRINCIPAL, NULL_ROLENAME, NULL_PRINCIPAL, 2);
 
                 if(currRoleExpr.exprType == EXPR_SI) {
-                    // L'inclusione è di tipo semplice
+                    // "The inclusion is of the simple type."
 
-                    // Accetta la simple inclusion solo se soddisfacibile dalle soluzioni nella stack di elaborazione
-                    // credenziale: A.a <-w B.b
+                    // "Accept the simple inclusion only if satisfiable by the solutions in the processing stack."
+                    //  "credential":  A.a <-w B.b
                     // solStack:
                     //              |               |   --->    |                   |
                     //       (j) -> | (m,w1) ∈ B.b  |   --->    | (m,w*w1) ∈ A.a    |
@@ -214,16 +214,16 @@ contract DART {
                     if(currRoleExpr.addrA != solStack[j].principal || currRoleExpr.roleA != solStack[j].rolename)
                         return Solution(NULL_PRINCIPAL, NULL_ROLENAME, NULL_PRINCIPAL, 3);
 
-                    // Aggiorna la stack di elaborazione
+                    // "Update the processing stack."
                     solStack[j].principal = currAssignedRole.addrA;
                     solStack[j].rolename = currAssignedRole.roleA;
                     solStack[j].weight = mulWeight(solStack[j].weight, currAssignedRole.inclusions.getWeight(inclusionPointer - 1));
                 }
                 else if(currRoleExpr.exprType == EXPR_LI) {
-                    // L'inclusione è di tipo linkato
+                    // "The inclusion is of the linked type."
 
-                    // Accetta la linked inclusion solo se soddisfacibile dalle soluzioni nella stack di elaborazione
-                    // credenziale: A.a <-w B.b.c
+                    // "Accept the linked inclusion only if satisfiable by the solutions in the processing stack."
+                    // "credential": A.a <-w B.b.c
                     // solStack:
                     //              |               |   --->    |                   |
                     //       (j) -> | (C,w2) ∈ B.b  |   --->    | [...]             |
@@ -237,17 +237,17 @@ contract DART {
                             || solStack[j].solution != solStack[j-1].principal)
                         return Solution(NULL_PRINCIPAL, NULL_ROLENAME, NULL_PRINCIPAL, 4);
 
-                    // Aggiorna la stack di elaborazione
+                    // "Update the processing stack."
                     j--;
                     solStack[j].principal = currAssignedRole.addrA;
                     solStack[j].rolename = currAssignedRole.roleA;
                     solStack[j].weight = mulWeight(mulWeight(solStack[j].weight, solStack[j+1].weight), currAssignedRole.inclusions.getWeight(inclusionPointer - 1));
                 }
                 else if(currRoleExpr.exprType == EXPR_II) {
-                    // L'inclusione è di tipo intersecato
+                    // "The inclusion is of the linked type."
 
-                    // Accetta la intersection inclusion solo se soddisfacibile dalle soluzioni nella stack di elaborazione
-                    // credenziale: A.a <-w B.b ∩ C.c
+                    // "Accept the linked inclusion only if satisfiable by the solutions in the processing stack."
+                    // "credential": A.a <-w B.b ∩ C.c
                     // solStack:
                     //              |               |       |               |    --->    |                           |
                     //       (j) -> | (m,w2) ∈ B.b  |       | (m,w2) ∈ C.c  |    --->    |                           |
@@ -274,7 +274,7 @@ contract DART {
                             )
                         return Solution(NULL_PRINCIPAL, NULL_ROLENAME, NULL_PRINCIPAL, 5);
 
-                    // Aggiorna la stack di elaborazione
+                    // "Update the processing stack."
                     j--;
                     solStack[j].principal = currAssignedRole.addrA;
                     solStack[j].rolename = currAssignedRole.roleA;
