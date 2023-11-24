@@ -58,7 +58,7 @@ contract DART {
         _;
     }
 
-    function newRole(bytes2 _rolename)
+    function newRole(bytes2 _rolename) 
             external rolenameNotNull(_rolename) {
 
         Expression storage expr = exprPool[packExpr(msg.sender, _rolename)];
@@ -106,7 +106,7 @@ contract DART {
         Expression storage localRole = exprPool[packExpr(msg.sender, _assignedRolename)];
         require(localRole.exprType == EXPR_SI, "local role does not exists");
 
-        require(exprPool[packExpr(_principal, _firstRolename)].exprType == EXPR_SI, "remote role does not exists");
+        require(exprPool[packExpr(_principal, _firstRolename)].exprType == EXPR_SI, "remote role does not exist");
 
         bytes32 linkedExprId = packExpr(_principal, _firstRolename, _secondRolename);
         Expression storage linkedExpr = exprPool[linkedExprId];
